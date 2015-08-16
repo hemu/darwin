@@ -2,24 +2,28 @@
 using System.Collections;
 using UnityEngine.UI;
 
-public class OrganismController : MonoBehaviour {
+public class PopulationController : MonoBehaviour {
 
+    public int foodChainRank = 0;
     public GameController gameController;
+    public OrganismFactory organismFactory;
+    private Population population;
+    private EcosystemController ecosystemController;
 
-    public double energyProduceValue;
-    public float productionTimeInSec;
-    public string organismName = "organism";
+    public string popName = "unnamed";
 
     // energy
+    public double energyProduceValue;
     private double energy = 0;
+   
+    // energy production
     private bool inProduction = false;
-
-    // progress bar
+    public float productionTimeInSec;
     private float prodTime = 0;
     private Image progressBar;
     private float progressPercent = 0f;
 
-    // levels
+    // level
     private Text levelText;
     private int level = 1;
 
@@ -27,23 +31,26 @@ public class OrganismController : MonoBehaviour {
     private Text upgradeCostText;
     public int upgradeCost = 0;
 
-    // upgrade multiplier
+    // upgrade controls
     public int bonusLevelInterval = 5;
     private int previousBonusLevel = 0;
     public double upgradeEnergyExponent = 1.3;
     public float upgradeCostExponent = 2.0f;
 
+    // unlocking
     public bool unlocked = false;
     public int unlockEnergyThreshold = 2;
 
     const int AUTOMATIC_LEVEL_THRESHOLD = 2;
 
     void Awake() {
+        population = new Population(this, organismFactory, 1);
+        population.SubscribeDeath(RegisterDeath);
     }
 
     void Start () {
         progressBar = transform.FindChild("progressBar").FindChild("progressBarFG").GetComponent<Image>();
-        progressBar.fillAmount = 0.5f;
+        progressBar.fillAmount = 0f;
         levelText = transform.FindChild("organismLevel").GetComponent<Text>();
         upgradeCostText = transform.FindChild("upgradeBtn").FindChild("upgradeBtnElem").GetComponent<Text>();
         UpdateCost();
@@ -54,6 +61,7 @@ public class OrganismController : MonoBehaviour {
 	}
 
 	void Update () {
+        population.Update();
         if(inProduction) {
             UpdateEnergy();
             UpdateProgress();
@@ -61,29 +69,23 @@ public class OrganismController : MonoBehaviour {
         UpdateProgressBar();
 	}
 
-    public void Lock() {
-        transform.gameObject.SetActive(false);
-        unlocked = false;
-    }
-
-    public void Unlock() {
-        Debug.Log("unlocking....");
-        Debug.Log(unlocked);
-        if(!unlocked) {
-            transform.gameObject.SetActive(true);
-            unlocked = true;
-            Debug.Log("done unlocking");
-        }
-
+    public float RegisterFoodRequest(float foodAmount) {
+        float food = ecosystemController.RegisterFoodRequest(this, foodAmount);
+        Debug.Log(popName + " received " + food + " food");
+        return food;
     }
 
     private void UpdateProgressBar() {
         progressBar.fillAmount = progressPercent;
     }
 
-    private void UpdateLevel(int newLevel) {
+    private void UpdatePopulation(int newLevel) {
+        int levelDiff = newLevel - level;
+        if(levelDiff > 0) {
+            population.AddOrganisms(levelDiff);
+        }
         level = newLevel;
-        levelText.text = newLevel.ToString();
+        levelText.text = level.ToString();
     }
 
     private void UpdateProgress() {
@@ -105,7 +107,7 @@ public class OrganismController : MonoBehaviour {
     void UpdateEnergy() {
         prodTime += Time.deltaTime;
         if(prodTime > productionTimeInSec) {
-            SetEnergy(energy + energyProduceValue);
+            SetEnergy(energy + population.GetEnergyProduceVal());
             ResetProduction();
         }
     }
@@ -123,7 +125,6 @@ public class OrganismController : MonoBehaviour {
     }
 
     public void Upgrade() {
-        level += 1;
         UpdateCost();
         UpdateEnergyProduction();
         if(level % bonusLevelInterval == 0) {
@@ -132,19 +133,29 @@ public class OrganismController : MonoBehaviour {
             bonusLevelInterval = (int)(bonusLevelInterval * 1.5) + previousBonusLevel;
             previousBonusLevel = level;
         }
-        UpdateLevel(level);
+        UpdatePopulation(level + 1);
         if(level > AUTOMATIC_LEVEL_THRESHOLD) { 
             StartProduction();
         }
     }
 
     private void UpdateCost() {
-        upgradeCost = (int)(Mathf.Pow(upgradeCost, upgradeCostExponent) + 1);
-        upgradeCostText.text = upgradeCost.ToString();
+//        upgradeCost = (int)(Mathf.Pow(upgradeCost, upgradeCostExponent) + 1);
+//        upgradeCostText.text = upgradeCost.ToString();
     }
 
     private void UpdateEnergyProduction() {
-        energyProduceValue = System.Math.Pow(energyProduceValue, upgradeEnergyExponent) + 1.0;
+//        energyProduceValue = System.Math.Pow(energyProduceValue, upgradeEnergyExponent) + 1.0
+    }
+
+    private void RegisterDeath(Organism organism) {
+        UpdatePopulation(level - 1);
+    }
+
+    public float TakeFood(float foodAmt) {
+        float availableFood = population.TakeFood(foodAmt);
+        Debug.Log(popName + " giving up " + availableFood + " food");
+        return availableFood;
     }
 
     private void SetEnergy(double newEnergy) {
@@ -159,6 +170,26 @@ public class OrganismController : MonoBehaviour {
 
     public int GetUpgradeCost() {
         return upgradeCost;
+    }
+
+    public string GetName() {
+        return popName;
+    }
+
+    public void Lock() {
+        transform.gameObject.SetActive(false);
+        unlocked = false;
+    }
+    
+    public void Unlock() {
+        if(!unlocked) {
+            transform.gameObject.SetActive(true);
+            unlocked = true;
+        }
+    }
+
+    public void SetEcosystem(EcosystemController ec) {
+        ecosystemController = ec;
     }
 
 }

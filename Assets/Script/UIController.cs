@@ -17,7 +17,7 @@ public class UIController : MonoBehaviour {
 
 	}
 
-    public void UpdateEnergy(double energy) {
+    public void SetEnergy(double energy) {
         energyCounterText.text = System.Math.Round(energy, 2).ToString();
     }
 

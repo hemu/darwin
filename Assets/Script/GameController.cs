@@ -3,60 +3,63 @@ using System.Collections;
 
 public class GameController : MonoBehaviour {
    
-    public GameObject[] organisms;
-    public int[] organismUnlockThreshold;
+    public GameObject[] populations;
+    public int[] popUnlockThreshold;
     public UIController uiController;
     private double energy = 0;
 
     void Awake() {
-        organisms = GameObject.FindGameObjectsWithTag("organism");
-        organismUnlockThreshold = new int[organisms.Length];
-        GameObject organism;
-        OrganismController oc;
-        for(int i =0; i < organisms.Length; i++) {
-            organism = organisms[i];
-            oc = organism.GetComponent<OrganismController>();
-            organismUnlockThreshold[i] = oc.unlockEnergyThreshold;
+        populations = GameObject.FindGameObjectsWithTag("population");
+        popUnlockThreshold = new int[populations.Length];
+        GameObject population;
+        PopulationController pc;
+        // store population unlock thresholds
+        for(int i =0; i < populations.Length; i++) {
+            population = populations[i];
+            pc = population.GetComponent<PopulationController>();
+            popUnlockThreshold[i] = pc.unlockEnergyThreshold;
         }
     }
 
-  	// Use this for initialization
 	void Start() {
 
 	}
 	
-	// Update is called once per frame
 	void Update() {
-        double additionalEnergy = 0;
-        foreach(GameObject organism in organisms) {
-            additionalEnergy += organism.GetComponent<OrganismController>().TakeEnergy();
-        }
-        if(additionalEnergy != 0) {
-            UpdateEnergy(energy + additionalEnergy);
-        }
+        UpdateEnergy();
 	}
 
-    private void UpdateEnergy(double newEnergy) {
+    private void UpdateEnergy() {
+        double additionalEnergy = 0;
+        foreach(GameObject population in populations) {
+            additionalEnergy += population.GetComponent<PopulationController>().TakeEnergy();
+        }
+        if(additionalEnergy != 0) {
+            SetEnergy(energy + additionalEnergy);
+        }
+    }
+    
+    private void SetEnergy(double newEnergy) {
         energy = newEnergy;
-        uiController.UpdateEnergy(energy);
-        CheckLockedOrganisms();
+        uiController.SetEnergy(energy);
+        UpdateLockedPopulations();
     }
 
-    public void CheckLockedOrganisms() {
-        GameObject organism;
-        for(int i=0; i< organisms.Length; i++) {
-            organism = organisms[i];
-            if(energy > organismUnlockThreshold[i]){
-                organism.GetComponent<OrganismController>().Unlock();
+    public void UpdateLockedPopulations() {
+        GameObject population;
+        for(int i=0; i< populations.Length; i++) {
+            population = populations[i];
+            if(energy > popUnlockThreshold[i]) {
+                population.GetComponent<PopulationController>().Unlock();
             }
         }
     }
 
-    public void RegisterUpgradeSignal(OrganismController organism) {
-        int upgradeCost = organism.GetUpgradeCost();
-        if(organism.GetUpgradeCost() <= energy) {
-            organism.Upgrade();
-            UpdateEnergy(energy - upgradeCost);
+    public void RegisterUpgradeSignal(PopulationController population) {
+        int upgradeCost = population.GetUpgradeCost();
+        if(population.GetUpgradeCost() <= energy) {
+            population.Upgrade();
+            SetEnergy(energy - upgradeCost);
         } else {
             Debug.Log("Not enough energy to upgrade.");
         }
